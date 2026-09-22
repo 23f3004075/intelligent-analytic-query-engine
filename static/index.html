@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office Solution AI Labs — Intelligent Analytic Query Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Vue 3 via CDN (Lightweight, zero-build reactivity) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <!-- Company Styled Navigation Bar -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="brand">
+          <div class="brand-logo-mark">
+            <span class="logo-circle"></span>
+            <span class="logo-letter">OS</span>
+          </div>
+          <div class="brand-text">
+            <div class="company-name">Office Solution <span class="accent-gold">AI Labs</span></div>
+            <div class="product-tag">Intelligent Analytic Query Engine</div>
+          </div>
+        </div>
+
+        <div class="header-meta">
+          <div class="status-indicator" :class="{ 'online': serverReady }">
+            <span class="status-beacon"></span>
+            <span class="status-label">Dual-Track Engine Ready</span>
+          </div>
+          <div class="model-badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span>{{ modelName || 'inclusionai/ling-3.0-flash-vl:free' }}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sub-Hero Banner matching innovationalofficesolution.com style -->
+    <section class="hero-strip">
+      <div class="hero-content">
+        <span class="hero-kicker">Enterprise Analytics &amp; BI Automation</span>
+        <h2>Natural Language to Verified Analytics</h2>
+        <p>Translate complex questions into high-performance DuckDB SQL and Pandas queries with automated validation, confidence scoring, and full explainability.</p>
+      </div>
+    </section>
+
+    <!-- Main Workspace -->
+    <main class="main-container">
+      <!-- Query Composer Card -->
+      <section class="composer-card">
+        <div class="card-header-row">
+          <div class="section-title-group">
+            <label for="query-input" class="section-label">Ask Analytics Question</label>
+            <span class="section-hint">Query sales data, revenue, regional targets, customer performance, or margins</span>
+          </div>
+          
+          <div class="track-selector">
+            <span class="selector-label">Execution Track:</span>
+            <button 
+              type="button" 
+              class="track-btn" 
+              :class="{ active: selectedTrack === 'auto' }" 
+              @click="selectedTrack = 'auto'"
+              id="track-auto-btn"
+            >
+              Auto (Dual-Track)
+            </button>
+            <button 
+              type="button" 
+              class="track-btn" 
+              :class="{ active: selectedTrack === 'sql' }" 
+              @click="selectedTrack = 'sql'"
+              id="track-sql-btn"
+            >
+              SQL Only
+            </button>
+            <button 
+              type="button" 
+              class="track-btn" 
+              :class="{ active: selectedTrack === 'pandas' }" 
+              @click="selectedTrack = 'pandas'"
+              id="track-pandas-btn"
+            >
+              Pandas Only
+            </button>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <textarea
+            id="query-input"
+            v-model="queryText"
+            placeholder="Type your question here (e.g. 'Top 2 cities by profit' or 'Which region missed its target in Feb?')..."
+            rows="3"
+            @keydown.enter.ctrl.prevent="executeCurrentQuery"
+            :disabled="loading"
+          ></textarea>
+        </div>
+
+        <div class="composer-actions">
+          <div class="keyboard-hint">
+            Shortcut: <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+          </div>
+          <div class="action-buttons">
+            <button 
+              type="button" 
+              class="btn btn-secondary" 
+              @click="clearQuery" 
+              :disabled="loading || !queryText"
+              id="clear-btn"
+            >
+              Clear
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              @click="executeCurrentQuery" 
+              :disabled="loading || !queryText.trim()"
+              id="run-query-btn"
+            >
+              <svg v-if="!loading" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <div v-else class="spinner"></div>
+              <span>{{ loading ? 'Executing Query...' : 'Run Query' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sample Query Chips -->
+        <div class="samples-section">
+          <div class="samples-title">Sample Enterprise Queries:</div>
+          <div class="chips-container">
+            <button
+              v-for="(sample, idx) in samples"
+              :key="idx"
+              type="button"
+              class="sample-chip"
+              :id="'sample-chip-' + idx"
+              @click="loadSample(sample.query)"
+            >
+              {{ sample.query }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pipeline Execution State -->
+      <section v-if="loading" class="pipeline-card">
+        <div class="pipeline-header">
+          <div class="spinner-teal"></div>
+          <div>
+            <h3>Processing Query Through IAQE Pipeline</h3>
+            <p class="pipeline-status-text">{{ activePipelineStep }}</p>
+          </div>
+        </div>
+        <div class="pipeline-progress-bar">
+          <div class="pipeline-progress-fill"></div>
+        </div>
+        <div class="pipeline-steps-list">
+          <span class="step-chip active">1. Preprocessor</span>
+          <span class="step-chip active">2. Schema Digest</span>
+          <span class="step-chip active">3. Intent Classifier</span>
+          <span class="step-chip active">4. Feedback Retrieval</span>
+          <span class="step-chip active">5. Code Generator</span>
+          <span class="step-chip active">6. DuckDB Executor</span>
+          <span class="step-chip active">7. Result Validator</span>
+          <span class="step-chip active">8. Confidence Scorer</span>
+          <span class="step-chip active">9. Explainer</span>
+        </div>
+      </section>
+
+      <!-- Error Card -->
+      <section v-if="error" class="error-card" id="error-card">
+        <div class="error-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div class="error-body">
+          <h4>Execution Notice</h4>
+          <p>{{ error }}</p>
+        </div>
+        <button type="button" class="btn-icon" @click="error = null" title="Dismiss">
+          &times;
+        </button>
+      </section>
+
+      <!-- Results View -->
+      <section v-if="result" class="results-card" id="results-card">
+        <!-- Results Banner / Metrics -->
+        <div class="metrics-row">
+          <div class="metric-group">
+            <!-- Confidence Score Pill -->
+            <div class="confidence-pill" :class="getConfidenceClass(result.confidence_score)">
+              <div class="score-circle">
+                <span>{{ Math.round((result.confidence_score || 0) * 100) }}%</span>
+              </div>
+              <div class="score-text">
+                <span class="score-label">{{ getConfidenceLabel(result.confidence_score) }}</span>
+                <span class="score-sub">Confidence Score: {{ result.confidence_score }}</span>
+              </div>
+            </div>
+
+            <!-- Execution Track Pill -->
+            <div class="metric-pill">
+              <span class="pill-label">Track</span>
+              <span class="pill-value track-value">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                {{ result.metadata?.track_used || 'None' }}
+              </span>
+            </div>
+
+            <!-- Complexity Pill -->
+            <div class="metric-pill">
+              <span class="pill-label">Complexity</span>
+              <span class="pill-value" :class="'badge-' + (result.metadata?.complexity || 'MEDIUM').toLowerCase()">
+                {{ result.metadata?.complexity || 'MEDIUM' }}
+              </span>
+            </div>
+
+            <!-- Latency Pill -->
+            <div class="metric-pill">
+              <span class="pill-label">Latency</span>
+              <span class="pill-value">{{ result.metadata?.processing_time_ms ? (result.metadata.processing_time_ms / 1000).toFixed(2) + 's' : '-' }}</span>
+            </div>
+          </div>
+
+          <!-- Feedback Widget -->
+          <div class="feedback-widget" id="feedback-widget">
+            <span class="feedback-prompt">Accuracy Feedback:</span>
+            <button 
+              type="button" 
+              class="feedback-btn feedback-up" 
+              :class="{ active: userFeedback === true }"
+              @click="submitUserFeedback(true)"
+              title="Mark as Accurate"
+              id="thumbs-up-btn"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Accurate
+            </button>
+            <button 
+              type="button" 
+              class="feedback-btn feedback-down" 
+              :class="{ active: userFeedback === false }"
+              @click="submitUserFeedback(false)"
+              title="Flag Issue"
+              id="thumbs-down-btn"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Inaccurate
+            </button>
+          </div>
+        </div>
+
+        <div v-if="feedbackSuccessMsg" class="feedback-alert">
+          {{ feedbackSuccessMsg }}
+        </div>
+
+        <!-- 3-Part Explanation Cards (Styled after company teal service cards) -->
+        <div class="explanation-grid">
+          <div class="exp-card">
+            <div class="exp-card-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path d="m12 16 4-4-4-4"/><path d="M8 12h8"/>
+              </svg>
+              <h4>What Was Understood</h4>
+            </div>
+            <p>{{ result.explanation?.understood || 'Interpreted natural language analytical intent.' }}</p>
+          </div>
+
+          <div class="exp-card">
+            <div class="exp-card-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <h4>Analytical Approach</h4>
+            </div>
+            <p>{{ result.explanation?.approach || 'Generated optimized execution logic and executed against dataset.' }}</p>
+          </div>
+
+          <div class="exp-card">
+            <div class="exp-card-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <h4>Assumptions &amp; Limitations</h4>
+            </div>
+            <p>{{ result.explanation?.caveats || 'No critical assumptions flagged.' }}</p>
+          </div>
+        </div>
+
+        <!-- Data Results Table -->
+        <div class="table-section">
+          <div class="table-header-row">
+            <div class="table-title">
+              <h3>Execution Results</h3>
+              <span class="row-count-badge" v-if="result.result">
+                {{ result.result.length }} {{ result.result.length === 1 ? 'record' : 'records' }}
+              </span>
+            </div>
+            <button 
+              v-if="result.result && result.result.length > 0" 
+              type="button" 
+              class="btn btn-sm btn-outline" 
+              @click="exportToCSV"
+              id="export-csv-btn"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Export to CSV
+            </button>
+          </div>
+
+          <!-- Empty Result Notice -->
+          <div v-if="!result.result || result.result.length === 0" class="empty-result-box">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <p>Query executed successfully, returning 0 matching rows or an empty scalar result.</p>
+          </div>
+
+          <!-- Rendered Table -->
+          <div v-else class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th v-for="col in resultColumns" :key="col">{{ col }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rIdx) in result.result" :key="rIdx">
+                  <td v-for="col in resultColumns" :key="col">
+                    {{ formatCellValue(row[col]) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Generated Code Accordion -->
+        <div class="code-section">
+          <div class="code-header" @click="showCode = !showCode">
+            <div class="code-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+              </svg>
+              <span>Generated Query Logic ({{ result.metadata?.track_used }})</span>
+            </div>
+            <div class="code-controls">
+              <button 
+                type="button" 
+                class="copy-btn" 
+                @click.stop="copyCode" 
+                id="copy-code-btn"
+              >
+                {{ codeCopied ? 'Copied' : 'Copy Code' }}
+              </button>
+              <span class="toggle-arrow" :class="{ open: showCode }">▼</span>
+            </div>
+          </div>
+          <div v-show="showCode" class="code-body">
+            <pre><code>{{ result.generated_logic || 'No code generated' }}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dataset Quick Overview Footer -->
+      <footer class="dataset-footer" v-if="serverInfo?.tables">
+        <div class="dataset-meta">
+          <span class="meta-label">Connected In-Memory Tables:</span>
+          <span v-for="(tinfo, tname) in serverInfo.tables" :key="tname" class="table-tag">
+            <strong class="tag-title">{{ tname }}</strong>
+            <span class="tag-desc">({{ tinfo.row_count.toLocaleString() }} rows, {{ tinfo.columns.length }} columns)</span>
+          </span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
