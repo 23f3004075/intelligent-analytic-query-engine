@@ -47,6 +47,11 @@ User Query ──▶ [1. Preprocessor] ──▶ [2. Schema Context] ──▶ [
 *Click the preview card above to [watch the full application demo video (MP4)](./asset/IAQE_Demo.mp4).*
 
 
+https://github.com/user-attachments/assets/4b8ab932-ef6a-4c58-a94e-9056c99a66c8
+
+
+
+
 ## Quickstart
 
 ### 1. Installation
