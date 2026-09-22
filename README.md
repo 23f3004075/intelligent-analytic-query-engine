@@ -42,10 +42,9 @@ User Query ──▶ [1. Preprocessor] ──▶ [2. Schema Context] ──▶ [
 
 ## Demo Video
 
-<video width="100%" controls>
-  <source src="./asset/IAQE_Demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch IAQE Demo Video](./asset/demo_preview.png)](./asset/IAQE_Demo.mp4)
+
+*Click the preview card above to [watch the full application demo video (MP4)](./asset/IAQE_Demo.mp4).*
 
 
 ## Quickstart
