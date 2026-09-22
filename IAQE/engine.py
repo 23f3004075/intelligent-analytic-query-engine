@@ -77,15 +77,20 @@ class QueryEngine:
         self.feedback_retriever = FeedbackRetriever(feedback_log_path)
         self.feedback_logger = FeedbackLogger(feedback_log_path)
 
-        # ── Execution context (DuckDB + Pandas DataFrames) ──
+        # Execution context (DuckDB + Pandas DataFrames) 
         self.exec_context = ExecutionContext(
             duckdb_conn=self.context_builder.get_connection(),
             dataframes=self.context_builder.get_dataframes(),
         )
 
-    # ═════════════════════════════════════════════════════════════════════
-    #  Main entry point
-    # ═════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
 
     def run(self, query: str, track: str = "auto") -> dict:
         """Execute the full 10-step pipeline for a natural language query."""
@@ -333,7 +338,11 @@ class QueryEngine:
         return self.feedback_logger.log(entry)
 
     def mark_feedback(self, entry_id: int = None, was_correct: bool = True, note: str = "") -> bool:
-        """Mark feedback for a past query run."""
+        """Mark feedback for a past query run and refresh vector store."""
         if entry_id is not None:
-            return self.feedback_logger.mark_feedback(entry_id, was_correct, note)
-        return self.feedback_logger.mark_last(was_correct, note)
+            ok = self.feedback_logger.mark_feedback(entry_id, was_correct, note)
+        else:
+            ok = self.feedback_logger.mark_last(was_correct, note)
+        if ok and self.feedback_log_path:
+            self.feedback_retriever = FeedbackRetriever(self.feedback_log_path)
+        return ok

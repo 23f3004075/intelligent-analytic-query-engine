@@ -6,12 +6,7 @@ from pathlib import Path
 
 
 class DataContextBuilder:
-    """The most critical component — an LLM is only as good as its context.
     
-    Loads CSVs into DuckDB, parses the data dictionary, computes per-column
-    statistics, and builds the schema digest injected into every LLM prompt.
-    """
-
     def __init__(self, csv_paths: list, data_dict_path: str = None):
         self.conn = duckdb.connect(database=':memory:')
         self.csv_paths = csv_paths
@@ -19,34 +14,26 @@ class DataContextBuilder:
         self.data_dictionary = self._load_data_dictionary(data_dict_path)
         self._load_csvs()
 
-    # ── Robust File Loading ──────────────────────────────────────────────
 
     def _load_data_dictionary(self, path):
-        """Robustly load data_dictionary.json, handling various formats.
-        
-        Handles both standard JSON and the quirky format where each line
-        is individually quoted with doubled internal quotes.
-        """
         if not path or not Path(path).exists():
             return {}
 
         with open(path, 'r', encoding='utf-8-sig') as f:
             raw = f.read()
 
-        # Try standard JSON first (recruiter may provide clean JSON)
+       
         try:
             return json.loads(raw)
         except (json.JSONDecodeError, ValueError):
             pass
 
-        # Fallback: handle quirky format where lines are wrapped in quotes
-        # with doubled internal quotes (e.g., "  ""key"": ""value"",")
         lines = []
         for line in raw.splitlines():
             stripped = line.strip()
             if stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2:
-                inner = stripped[1:-1]       # Remove outer quotes
-                inner = inner.replace('""', '"')  # Un-double internal quotes
+                inner = stripped[1:-1]       
+                inner = inner.replace('""', '"')  
                 lines.append(inner)
             else:
                 lines.append(stripped)
@@ -58,16 +45,10 @@ class DataContextBuilder:
             return {}  # Graceful degradation
 
     def _load_csv_robust(self, csv_path):
-        """Load CSV handling various formats including quoted-line CSVs.
         
-        Some CSVs wrap each entire row in quotes — e.g.:
-            "order_id,order_date,region,..."
-            "1001,2024-01-05,APAC,..."
-        This method detects and handles that format.
-        """
         path = Path(csv_path)
 
-        # Try standard pandas read first
+        
         try:
             df = pd.read_csv(path, encoding='utf-8-sig', keep_default_na=False)
             if len(df.columns) > 1:
@@ -75,7 +56,7 @@ class DataContextBuilder:
         except Exception:
             pass
 
-        # Fallback: strip outer quotes from each line and re-parse
+        
         with open(path, 'r', encoding='utf-8-sig') as f:
             raw = f.read()
 
@@ -90,7 +71,7 @@ class DataContextBuilder:
         return pd.read_csv(io.StringIO(cleaned), keep_default_na=False)
 
     def _load_csvs(self):
-        """Load all CSV files into both Pandas DataFrames and DuckDB tables."""
+        
         for csv_path in self.csv_paths:
             table_name = Path(csv_path).stem
             df = self._load_csv_robust(csv_path)
@@ -103,21 +84,17 @@ class DataContextBuilder:
             )
             self.conn.unregister(f"_tmp_{table_name}")
 
-    # ── Accessors ────────────────────────────────────────────────────────
+    
 
     def get_connection(self):
-        """Return the DuckDB connection with all tables loaded."""
+        
         return self.conn
 
     def get_dataframes(self):
-        """Return dict of DataFrames for Pandas fallback execution.
-        
-        Keys are formatted as <table_name>_df (e.g., sales_data_df).
-        """
         return {f"{name}_df": df for name, df in self.dataframes.items()}
 
     def get_all_columns(self):
-        """Return a set of all column names across all tables."""
+        
         columns = set()
         for table_name in self.dataframes:
             try:
@@ -129,14 +106,9 @@ class DataContextBuilder:
                 columns.update(self.dataframes[table_name].columns.tolist())
         return columns
 
-    # ── Schema Digest (injected into every LLM call) ─────────────────────
+    
 
     def build_schema_digest(self):
-        """Build a human-readable schema digest for LLM prompt injection.
-        
-        Includes table structure, column types, per-column stats, sample
-        values, and the business glossary from data_dictionary.json.
-        """
         digest_parts = []
 
         tables = self.conn.execute("SHOW TABLES").fetchall()
@@ -164,7 +136,6 @@ class DataContextBuilder:
         return "\n\n".join(digest_parts)
 
     def _get_column_stats(self, table, col, dtype):
-        """Compute per-column statistics for the schema digest."""
         dtype_upper = dtype.upper()
 
         try:
@@ -204,8 +175,7 @@ class DataContextBuilder:
         except Exception:
             return "[stats unavailable]"
 
-    # ── Glossary from Data Dictionary ────────────────────────────────────
-
+    
     def build_glossary(self):
         """Build business glossary string from data_dictionary.json."""
         if not self.data_dictionary:

@@ -39,6 +39,15 @@ User Query ──▶ [1. Preprocessor] ──▶ [2. Schema Context] ──▶ [
 
 ---
 
+
+## Demo Video
+
+<video width="100%" controls>
+  <source src="./asset/IAQE_Demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+
 ## Quickstart
 
 ### 1. Installation
@@ -101,4 +110,4 @@ python -m pytest tests/integration/ -v
 | [**`SYSTEM_DESIGN.md`**](SYSTEM_DESIGN.md) | Full architectural blueprint, mathematical models, prompt strategies, and trade-offs |
 | [**`USER_GUIDE.md`**](USER_GUIDE.md) | Comprehensive operator instructions, CLI options, dashboard walkthrough, and extension guide |
 | [**`CODEBASE_ANALYSIS.md`**](CODEBASE_ANALYSIS.md) | Deep technical analysis of every file, class, function, and dataclass in the repository |
-| [**`REPO_PUBLISHING_GUIDE.md`**](REPO_PUBLISHING_GUIDE.md) | Git hygiene, `.gitignore` rules, and step-by-step repository publishing instructions |
+

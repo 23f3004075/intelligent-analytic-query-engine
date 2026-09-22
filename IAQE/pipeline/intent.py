@@ -11,7 +11,7 @@ DEFAULT_MODEL = "inclusionai/ling-3.0-flash-vl:free"
 
 
 class QueryIntent(BaseModel):
-    """Structured intent extracted from a natural language query."""
+    # Structured intent extracted from a natural language query.
     primary_operation: str = Field(
         ...,
         description="AGGREGATE | RANK | FILTER | COMPARE | TIME_SERIES"
@@ -43,15 +43,23 @@ class QueryIntent(BaseModel):
 
 
 class IntentClassifier:
-    """Lightweight, structured LLM call that classifies intent before code generation."""
+    # LLM call that classifies intent before code generation
 
-    def __init__(self, client: OpenAI = None, model: str = DEFAULT_MODEL):
-        api_key = os.getenv("OPEN_ROUTER_KEY") or os.getenv("OPENAI_API_KEY") or "not_set"
-        self.client = client or OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-        )
-        self.model = model
+    def __init__(self, client: OpenAI = None, model: str = None):
+        openrouter_key = os.getenv("OPEN_ROUTER_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if client is not None:
+            self.client = client
+            self.model = model or DEFAULT_MODEL
+        elif openrouter_key:
+            self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key)
+            self.model = model or os.getenv("OPEN_ROUTER_MODEL", DEFAULT_MODEL)
+        elif openai_key:
+            self.client = OpenAI(api_key=openai_key)
+            self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        else:
+            self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key="not_set")
+            self.model = model or DEFAULT_MODEL
 
     def classify(self, query: str, schema_digest: str) -> QueryIntent:
         system_prompt = f"""You are a query intent parser. Given a natural language analytics question 
@@ -65,27 +73,80 @@ Respond ONLY with a valid JSON matching this schema:
 
 Never guess column names — use exactly what the schema lists."""
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=300,
-            temperature=0.0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f'QUERY: "{query}"'}
-            ]
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                max_tokens=300,
+                temperature=0.0,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f'QUERY: "{query}"'}
+                ]
+            )
+            raw_json = self._extract_json(response.choices[0].message.content)
+            return QueryIntent.model_validate_json(raw_json)
+        except Exception:
+            return self._heuristic_classify(query)
+
+    def _heuristic_classify(self, query: str) -> QueryIntent:
+        import re
+        q = query.lower()
+        primary = "AGGREGATE"
+        secondaries = []
+        n_val = None
+        tables = ["sales_data"]
+        entities = {}
+
+        if any(w in q for w in ["target", "quota", "missed"]):
+            tables.append("targets")
+            primary = "COMPARE"
+            secondaries.append("JOIN")
+
+        if any(w in q for w in ["loss", "losses", "least profit", "lowest profit"]):
+            primary = "RANK"
+            secondaries.append("BOTTOM_N")
+            entities["metric"] = "profit"
+            entities["order"] = "asc"
+
+        if any(w in q for w in ["top", "highest", "lowest", "bottom", "rank", "best", "worst"]):
+            primary = "RANK"
+            secondaries.append("TOP_N")
+            m = re.search(r"(?:top|first|limit|bottom)\s+(\d+)", q)
+            if m:
+                n_val = int(m.group(1))
+
+        if any(w in q for w in ["%", "contribution", "share", "percentage"]):
+            secondaries.append("PCT_CONTRIBUTION")
+
+        if any(w in q for w in ["yoy", "growth", "year over year"]):
+            primary = "TIME_SERIES"
+
+        for col in ["city", "region", "country", "product_category", "product_name", "customer_segment"]:
+            if col in q or col.replace("_", " ") in q or col + "s" in q or (col == "city" and "cities" in q):
+                entities[col] = "group"
+
+        time_c = None
+        for m in ["january", "february", "march", "jan", "feb", "mar", "q1", "q2", "2023", "2024"]:
+            if m in q:
+                time_c = m
+                break
+
+        return QueryIntent(
+            primary_operation=primary,
+            secondary_operations=secondaries,
+            entities=entities,
+            time_constraint=time_c,
+            n_value=n_val,
+            tables_needed=tables,
+            ambiguities=[],
         )
 
-        raw_json = self._extract_json(response.choices[0].message.content)
-        intent = QueryIntent.model_validate_json(raw_json)
-        return intent
-
     def _extract_json(self, text: str) -> str:
-        """Extract JSON from response, handling markdown code blocks."""
         text = text.strip()
         if text.startswith("```"):
             lines = text.split("\n")
-            lines = lines[1:]  # Remove opening ```json
+            lines = lines[1:]  
             if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]  # Remove closing ```
+                lines = lines[:-1]  
             text = "\n".join(lines).strip()
         return text

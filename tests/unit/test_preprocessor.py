@@ -1,7 +1,4 @@
-"""
-Unit tests for QueryPreprocessor — no LLM, no API keys required.
-Tests normalization, spell checking with domain vocabulary, and complexity estimation.
-"""
+
 import pytest
 import sys
 import os
@@ -14,9 +11,6 @@ from IAQE.pipeline.preprocessor import QueryPreprocessor, PreprocessedQuery
 @pytest.fixture
 def preprocessor():
     return QueryPreprocessor()
-
-
-# ─── Normalization ─────────────────────────────────────────────────────
 
 class TestNormalization:
     def test_lowercase(self, preprocessor):
@@ -39,7 +33,6 @@ class TestNormalization:
         assert result.original == ""
 
 
-# ─── Domain Vocabulary Protection ──────────────────────────────────────
 
 class TestSpellCheck:
     def test_domain_term_apac_not_corrupted(self, preprocessor):
@@ -67,7 +60,6 @@ class TestSpellCheck:
         assert "sql" in result.normalized_q
 
 
-# ─── Complexity Estimation ─────────────────────────────────────────────
 
 class TestComplexity:
     def test_simple_total_query(self, preprocessor):
@@ -101,8 +93,6 @@ class TestComplexity:
         assert result.complexity == "COMPLEX"
 
 
-# ─── Output Shape ──────────────────────────────────────────────────────
-
 class TestOutputShape:
     def test_returns_preprocessed_query(self, preprocessor):
         result = preprocessor.process("test query")
@@ -116,7 +106,6 @@ class TestOutputShape:
         assert result.complexity in ("SIMPLE", "MEDIUM", "COMPLEX")
 
     def test_all_nl_queries_produce_valid_output(self, preprocessor):
-        """Run all 8 queries from the assignment through the preprocessor."""
         queries = [
             "Total sales in India for March",
             "Top 2 cities by profit",

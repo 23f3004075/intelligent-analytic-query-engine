@@ -1,7 +1,4 @@
-"""
-Unit tests for SafeExecutor — sandbox safety, timeouts, dual-track execution.
-No LLM calls needed.
-"""
+
 import pytest
 import sys
 import os
@@ -18,7 +15,7 @@ from IAQE.pipeline.executor import SafeExecutor, ExecutionContext, ExecutionResu
 
 @dataclass
 class MockCode:
-    """Mimics GeneratedCode for executor tests."""
+   
     sql: Optional[str] = None
     pandas: Optional[str] = None
 
@@ -30,7 +27,6 @@ def executor():
 
 @pytest.fixture
 def exec_context():
-    """Build a minimal DuckDB + Pandas context with test data."""
     conn = duckdb.connect(":memory:")
     conn.execute("""
         CREATE TABLE sales_data AS
@@ -45,7 +41,6 @@ def exec_context():
     )
 
 
-# ─── SQL Track ──────────────────────────────────────────────────────
 
 class TestSQLTrack:
     def test_valid_sql_succeeds(self, executor, exec_context):
@@ -63,7 +58,6 @@ class TestSQLTrack:
         assert len(result.result) == 3
 
 
-# ─── Pandas Track ───────────────────────────────────────────────────
 
 class TestPandasTrack:
     def test_valid_pandas_succeeds(self, executor, exec_context):
@@ -80,8 +74,6 @@ class TestPandasTrack:
         assert result.success is True
         assert result.result.iloc[0]["count"] == 3
 
-
-# ─── Dual Track Fallback ────────────────────────────────────────────
 
 class TestDualTrack:
     def test_bad_sql_falls_back_to_pandas(self, executor, exec_context):
@@ -107,8 +99,6 @@ class TestDualTrack:
         result = executor.execute(code, exec_context)
         assert result.success is False
 
-
-# ─── Security Checks ───────────────────────────────────────────────
 
 class TestSecurity:
     def test_banned_import_os(self, executor, exec_context):
@@ -136,8 +126,6 @@ class TestSecurity:
         with pytest.raises(SecurityError):
             executor.execute(code, exec_context)
 
-
-# ─── Result Shape ───────────────────────────────────────────────────
 
 class TestResultShape:
     def test_result_has_correct_fields(self, executor, exec_context):

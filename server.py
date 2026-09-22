@@ -1,12 +1,3 @@
-"""
-Lightweight FastAPI Server for IAQE Web Dashboard.
-
-Run with:
-    python server.py
-or:
-    uvicorn server:app --host 127.0.0.1 --port 8000 --reload
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -28,16 +19,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS for local development
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize QueryEngine singleton
 print("[IAQE Server] Initializing QueryEngine and loading DuckDB tables...")
 engine = QueryEngine(
     csv_paths=DEFAULT_CSV_PATHS,
@@ -69,7 +59,6 @@ class FeedbackRequest(BaseModel):
 
 @app.get("/api/info")
 def get_info():
-    """Return engine status, loaded tables, and column metadata."""
     tables_info = {}
     for name, df in engine.context_builder.dataframes.items():
         tables_info[name] = {
@@ -87,13 +76,11 @@ def get_info():
 
 @app.get("/api/samples")
 def get_samples():
-    """Return the pre-configured natural language sample queries."""
     return sample_queries
 
 
 @app.post("/api/query")
 def run_query(payload: QueryRequest):
-    """Execute a natural language query through the 10-step IAQE pipeline."""
     q = payload.query.strip()
     if not q:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
@@ -107,7 +94,7 @@ def run_query(payload: QueryRequest):
 
 @app.post("/api/feedback")
 def submit_feedback(payload: FeedbackRequest):
-    """Mark feedback for a past query run."""
+
     try:
         success = engine.mark_feedback(
             entry_id=payload.entry_id,

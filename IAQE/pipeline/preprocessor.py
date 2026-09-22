@@ -17,8 +17,6 @@ class PreprocessedQuery:
 
 
 class QueryPreprocessor:
-    """Lightweight query preprocessor — no LLM needed."""
-
     # Domain-specific terms to protect from spell correction
     DOMAIN_TERMS = {
         "apac", "emea", "na", "yoy", "q1", "q2", "q3", "q4",

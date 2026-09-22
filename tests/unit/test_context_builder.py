@@ -1,8 +1,3 @@
-"""
-Unit tests for DataContextBuilder — loads actual dataset files,
-validates DuckDB tables, schema digest, and glossary output.
-No LLM calls needed.
-"""
 import pytest
 import sys
 import os
@@ -17,11 +12,9 @@ DATA_DICT = "dataset/data_dictionary.json"
 
 @pytest.fixture(scope="module")
 def builder():
-    """Module-scoped: load once, share across tests."""
     return DataContextBuilder(csv_paths=CSV_PATHS, data_dict_path=DATA_DICT)
 
 
-# ─── CSV Loading ────────────────────────────────────────────────────
 
 class TestCSVLoading:
     def test_sales_data_has_15_columns(self, builder):
@@ -51,7 +44,7 @@ class TestCSVLoading:
         assert expected == set(df.columns)
 
 
-# ─── DuckDB Tables ──────────────────────────────────────────────────
+
 
 class TestDuckDB:
     def test_two_tables_registered(self, builder):
@@ -75,7 +68,6 @@ class TestDuckDB:
         assert len(result) > 0
 
 
-# ─── Schema Digest ──────────────────────────────────────────────────
 
 class TestSchemaDigest:
     def test_digest_is_nonempty_string(self, builder):
@@ -90,7 +82,7 @@ class TestSchemaDigest:
 
     def test_digest_contains_column_types(self, builder):
         digest = builder.build_schema_digest()
-        # Should contain at least one type indicator
+        # at least one type indicator
         assert any(t in digest for t in ["BIGINT", "VARCHAR", "INTEGER", "DOUBLE"])
 
     def test_digest_contains_sample_values(self, builder):
@@ -99,7 +91,6 @@ class TestSchemaDigest:
         assert any(r in digest for r in ["APAC", "EMEA", "NA"])
 
 
-# ─── Glossary ───────────────────────────────────────────────────────
 
 class TestGlossary:
     def test_glossary_is_nonempty(self, builder):
@@ -113,7 +104,7 @@ class TestGlossary:
 
     def test_glossary_contains_synonyms(self, builder):
         glossary = builder.build_glossary()
-        # "sales" → revenue is a documented synonym
+        
         assert "sales" in glossary.lower()
 
     def test_glossary_contains_dimensions(self, builder):
@@ -121,7 +112,6 @@ class TestGlossary:
         assert "dimensions" in glossary.lower() or "region" in glossary.lower()
 
 
-# ─── Column Set ─────────────────────────────────────────────────────
 
 class TestGetAllColumns:
     def test_returns_set(self, builder):
@@ -135,5 +125,5 @@ class TestGetAllColumns:
 
     def test_no_duplicates_conceptually(self, builder):
         cols = builder.get_all_columns()
-        # "region" exists in both tables but should appear once in the set
+        
         assert "region" in cols

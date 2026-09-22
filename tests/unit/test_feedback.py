@@ -1,8 +1,4 @@
-"""
-Unit tests for FeedbackRetriever + FeedbackLogger — CSV persistence,
-TF-IDF similarity retrieval, cold start, and feedback marking.
-No LLM calls needed.
-"""
+
 import pytest
 import sys
 import os
@@ -37,7 +33,6 @@ def tmp_log(tmp_path):
     return str(tmp_path / "feedback.csv")
 
 
-# ─── Cold Start (No Log) ───────────────────────────────────────────
 
 class TestColdStart:
     def test_retriever_inactive_without_file(self, tmp_log):
@@ -50,7 +45,6 @@ class TestColdStart:
         assert results == []
 
 
-# ─── Logger ─────────────────────────────────────────────────────────
 
 class TestLogger:
     def test_first_write_creates_file(self, tmp_log):
@@ -75,7 +69,6 @@ class TestLogger:
         assert len(df) == 2
 
 
-# ─── Retriever with Data ────────────────────────────────────────────
 
 class TestRetrieverWithData:
     def _seed_log(self, tmp_log):
@@ -109,7 +102,6 @@ class TestRetrieverWithData:
         logger = FeedbackLogger(tmp_log)
         logger.log(_make_entry("some query", feedback="pending"))
         retriever = FeedbackRetriever(tmp_log)
-        # Only pending → should NOT activate
         assert retriever.is_active is False
 
     def test_low_similarity_excluded(self, tmp_log):
